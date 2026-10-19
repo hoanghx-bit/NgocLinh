@@ -1071,7 +1071,7 @@
         }
     </script>
 
-    <!-- Tích hợp Firebase và Firestore SDKs, kèm theo cấu hình mới hh-ngoclinh -->
+    <!-- Khối kết nối Firebase Firestore Realtime Sync (Project: hh-ngoclinh) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-analytics.js";
@@ -1117,7 +1117,7 @@
             }
         }, (error) => console.warn("Firestore orders sync error:", error));
 
-        // Các hàm đồng bộ ghi nhận lên Cloud Firestore
+        // Các hàm hỗ trợ đẩy dữ liệu lên Cloud
         window.saveInventoryToCloud = async function() {
             try { 
                 for (const item of inventoryData) { 

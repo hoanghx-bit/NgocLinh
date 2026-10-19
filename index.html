@@ -39,7 +39,6 @@
         .card { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .card-header { font-size: 16px; font-weight: 700; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; color: #1e293b; flex-wrap: wrap; gap: 8px; }
         
-        /* Tối ưu hóa form-grid cho thiết bị di động tránh bị tràn */
         .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         @media (max-width: 640px) {
             .form-grid { grid-template-columns: 1fr; }
@@ -474,6 +473,8 @@
                 }
                 sortInventory();
                 saveInventory();
+                // Đồng bộ lên Cloud nếu hàm đã sẵn sàng
+                if (window.saveInventoryToCloud) window.saveInventoryToCloud();
                 renderInventory();
                 updateProductSelect();
                 alert("Đã upload dữ liệu kho thành công!");
@@ -533,6 +534,7 @@
             if (confirm("Xóa sản phẩm này khỏi kho?")) {
                 inventoryData = inventoryData.filter(p => p.id != id);
                 saveInventory();
+                if (window.deleteProductFromCloud) window.deleteProductFromCloud(id);
                 renderInventory();
                 updateProductSelect();
             }
@@ -578,16 +580,20 @@
             const banLe = parseVnNum(document.getElementById('edit-prod-banle').value);
             const banThung = parseVnNum(document.getElementById('edit-prod-banthung').value);
             
+            let updatedItem;
             if (id) {
                 const prod = inventoryData.find(p => p.id == id);
                 if (prod) {
                     prod.name = name; prod.qct = qct; prod.netLe = netLe;
                     prod.netThung = netThung; prod.banLe = banLe; prod.banThung = banThung;
+                    updatedItem = prod;
                 }
             } else {
-                inventoryData.push({ id: Date.now(), name, qct, netLe, netThung, banLe, banThung });
+                updatedItem = { id: Date.now(), name, qct, netLe, netThung, banLe, banThung };
+                inventoryData.push(updatedItem);
             }
             saveInventory();
+            if (window.saveProductItemToCloud && updatedItem) window.saveProductItemToCloud(updatedItem);
             renderInventory();
             updateProductSelect();
             closeProductModal();
@@ -680,6 +686,7 @@
             ordersData.push(newOrder);
             cleanOldOrders();
             safeSetItem('dms_orders', JSON.stringify(ordersData));
+            if (window.saveOrderToCloud) window.saveOrderToCloud(newOrder);
 
             tempItems = [];
             document.getElementById('order-customer').value = "";
@@ -793,6 +800,7 @@
             if (confirm("Bạn có chắc chắn muốn xóa đơn hàng này không?")) {
                 ordersData = ordersData.filter(o => o.id != orderId);
                 safeSetItem('dms_orders', JSON.stringify(ordersData));
+                if (window.deleteOrderFromCloud) window.deleteOrderFromCloud(orderId);
                 renderHistory();
                 renderStats();
             }
@@ -902,6 +910,7 @@
                 order.totalDiff = totalDiff - discount;
                 cleanOldOrders();
                 safeSetItem('dms_orders', JSON.stringify(ordersData));
+                if (window.saveOrderToCloud) window.saveOrderToCloud(order);
                 closeEditOrderModal();
                 renderHistory();
                 renderStats();
@@ -1063,28 +1072,76 @@
         }
     </script>
 
+    <!-- Đoạn mã Firestore đã được tích hợp đầy đủ và đồng bộ thời gian thực -->
     <script type="module">
-      // Import the functions you need from the SDKs you need
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-analytics.js";
-      // TODO: Add SDKs for Firebase products that you want to use
-      // https://firebase.google.com/docs/web/setup#available-libraries
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-analytics.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
-      // Your web app's Firebase configuration
-      // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-      const firebaseConfig = {
-        apiKey: "AIzaSyAnoM3dCuHJEcyWv5CxOfA0QMxv3RDVs7Q",
-        authDomain: "ngoclinh-hh.firebaseapp.com",
-        projectId: "ngoclinh-hh",
-        storageBucket: "ngoclinh-hh.firebasestorage.app",
-        messagingSenderId: "544144178078",
-        appId: "1:544144178078:web:2a43a741ced7dab0dcb48f",
-        measurementId: "G-NJ84PXY51F"
-      };
+        const firebaseConfig = {
+            apiKey: "AIzaSyAnoM3dCuHJEcyWv5CxOfA0QMxv3RDVs7Q",
+            authDomain: "ngoclinh-hh.firebaseapp.com",
+            projectId: "ngoclinh-hh",
+            storageBucket: "ngoclinh-hh.firebasestorage.app",
+            messagingSenderId: "544144178078",
+            appId: "1:544144178078:web:2a43a741ced7dab0dcb48f",
+            measurementId: "G-NJ84PXY51F"
+        };
 
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-      const analytics = getAnalytics(app);
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+
+        // Lắng nghe dữ liệu Kho hàng tự động từ Firestore
+        onSnapshot(collection(db, "inventory"), (snapshot) => {
+            const cloudInventory = [];
+            snapshot.forEach((doc) => { cloudInventory.push(doc.data()); });
+            if (cloudInventory.length > 0) {
+                inventoryData = cloudInventory; 
+                sortInventory();
+                safeSetItem('dms_inventory', JSON.stringify(inventoryData));
+                renderInventory(); 
+                updateProductSelect();
+            }
+        }, (error) => console.warn("Firestore inventory sync error:", error));
+
+        // Lắng nghe dữ liệu Đơn hàng tự động từ Firestore
+        onSnapshot(collection(db, "orders"), (snapshot) => {
+            const cloudOrders = [];
+            snapshot.forEach((doc) => { cloudOrders.push(doc.data()); });
+            if (cloudOrders.length > 0) {
+                ordersData = cloudOrders; 
+                cleanOldOrders();
+                safeSetItem('dms_orders', JSON.stringify(ordersData));
+                renderHistory(); 
+                renderStats();
+            }
+        }, (error) => console.warn("Firestore orders sync error:", error));
+
+        // Các hàm đồng bộ ghi nhận lên Cloud Firestore
+        window.saveInventoryToCloud = async function() {
+            try { 
+                for (const item of inventoryData) { 
+                    await setDoc(doc(db, "inventory", String(item.id)), item); 
+                } 
+            } catch(e) { console.error(e); }
+        };
+
+        window.saveProductItemToCloud = async function(item) { 
+            try { await setDoc(doc(db, "inventory", String(item.id)), item); } catch(e) { console.error(e); } 
+        };
+
+        window.saveOrderToCloud = async function(newOrder) { 
+            try { await setDoc(doc(db, "orders", String(newOrder.id)), newOrder); } catch(e) { console.error(e); } 
+        };
+
+        window.deleteOrderFromCloud = async function(orderId) { 
+            try { await deleteDoc(doc(db, "orders", String(orderId))); } catch(e) { console.error(e); } 
+        };
+
+        window.deleteProductFromCloud = async function(productId) { 
+            try { await deleteDoc(doc(db, "inventory", String(productId))); } catch(e) { console.error(e); } 
+        };
     </script>
 </body>
 </html>

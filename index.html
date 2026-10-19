@@ -473,7 +473,6 @@
                 }
                 sortInventory();
                 saveInventory();
-                // Đồng bộ lên Cloud nếu hàm đã sẵn sàng
                 if (window.saveInventoryToCloud) window.saveInventoryToCloud();
                 renderInventory();
                 updateProductSelect();
@@ -1072,20 +1071,20 @@
         }
     </script>
 
-    <!-- Đoạn mã Firestore đã được tích hợp đầy đủ và đồng bộ thời gian thực -->
+    <!-- Tích hợp Firebase và Firestore SDKs, kèm theo cấu hình mới hh-ngoclinh -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-analytics.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyAnoM3dCuHJEcyWv5CxOfA0QMxv3RDVs7Q",
-            authDomain: "ngoclinh-hh.firebaseapp.com",
-            projectId: "ngoclinh-hh",
-            storageBucket: "ngoclinh-hh.firebasestorage.app",
-            messagingSenderId: "544144178078",
-            appId: "1:544144178078:web:2a43a741ced7dab0dcb48f",
-            measurementId: "G-NJ84PXY51F"
+            apiKey: "AIzaSyA_5nlOPEDwUZyWLKmbMTVX2lV_puEsKbg",
+            authDomain: "hh-ngoclinh.firebaseapp.com",
+            projectId: "hh-ngoclinh",
+            storageBucket: "hh-ngoclinh.firebasestorage.app",
+            messagingSenderId: "596251892179",
+            appId: "1:596251892179:web:d36dc7a2c279abe3e1f726",
+            measurementId: "G-TSBF8GZ2Y5"
         };
 
         const app = initializeApp(firebaseConfig);
